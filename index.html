@@ -1,128 +1,145 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <title>Détection Manette</title>
-  <style>
-    body {
-      background-color: #111;
-      color: white;
-      font-family: sans-serif;
-      margin: 0;
-      overflow: hidden;
-    }
-
-    #container {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      text-align: center;
-    }
-
-    #message {
-      font-size: 2rem;
-      margin-bottom: 40px;
-    }
-
-    #arrow {
-      width: 80px;
-      height: 80px;
-      margin: 0 auto;
-      transform: rotate(0deg);
-      transition: transform 0.2s ease;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Manette + Combos + Nouvel onglet</title>
+<style>
+  body, html {
+    height: 100%; margin: 0; display: flex; justify-content: center; align-items: center; flex-direction: column;
+    font-family: Arial, sans-serif;
+  }
+  #message {
+    font-size: 2rem;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  #arrow {
+    font-size: 8rem;
+    user-select: none;
+  }
+</style>
 </head>
 <body>
-  <div id="container">
-    <div id="message">Connecte une manette</div>
-    <svg id="arrow" viewBox="0 0 100 100">
-      <polygon points="50,10 90,90 50,70 10,90" fill="white" />
-    </svg>
-  </div>
+  <div id="message">Connecte une manette</div>
+  <div id="arrow"></div>
 
-  <script>
-    const messageDiv = document.getElementById("message");
-    const arrow = document.getElementById("arrow");
+<script>
+(() => {
+  const messageDiv = document.getElementById("message");
+  const arrowDiv = document.getElementById("arrow");
 
-    const COMBO_1 = ["down", "down", "up", "up", "right", "left", "right", "left"];
-    const COMBO_2 = ["right", "right", "right", "right", "up", "left", "right"];
-    const COMBO_3 = ["left", "left", "left", "left", "down", "right", "left"];
+  // Combinaisons définies
+  const COMBO_1 = ["down", "down", "up", "up", "right", "left", "right", "left"];  // message simple
+  const COMBO_2 = ["right", "right", "right", "right", "up", "left", "right"];     // vidéo 1
+  const COMBO_3 = ["left", "left", "left", "left", "down", "right", "left"];       // vidéo 2
 
-    const YOUTUBE_LINK_1 = "https://www.youtube.com/watch?v=LIEN1"; // À personnaliser
-    const YOUTUBE_LINK_2 = "https://www.youtube.com/watch?v=LIEN2"; // À personnaliser
+  // Liens Youtube (modifie ici tes URLs)
+  const YOUTUBE_LINK_1 = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+  const YOUTUBE_LINK_2 = "https://www.youtube.com/watch?v=oHg5SJYRHA0";
 
-    let directions = [];
-    let lastDirection = null;
-    let gamepadIndex = null;
+  let directions = [];
+  let lastDirection = null;
+  const THRESHOLD = 0.5;
 
-    window.addEventListener("gamepadconnected", (e) => {
-      gamepadIndex = e.gamepad.index;
-      messageDiv.textContent = "Manette connectée. Essaie une combinaison...";
-      requestAnimationFrame(updateLoop);
-    });
+  const arrows = {
+    up: "↑",
+    down: "↓",
+    left: "←",
+    right: "→",
+    none: ""
+  };
 
-    function getDirection(x, y, threshold = 0.5) {
-      if (y > threshold) return "down";
-      if (y < -threshold) return "up";
-      if (x > threshold) return "right";
-      if (x < -threshold) return "left";
-      return null;
+  function getDirectionFromAxes(x, y) {
+    if (y > THRESHOLD) return "down";
+    if (y < -THRESHOLD) return "up";
+    if (x > THRESHOLD) return "right";
+    if (x < -THRESHOLD) return "left";
+    return null;
+  }
+
+  function endsWithCombo(arr, combo) {
+    if (arr.length < combo.length) return false;
+    return arr.slice(-combo.length).join(",") === combo.join(",");
+  }
+
+  function checkCombos() {
+    if (endsWithCombo(directions, COMBO_1)) {
+      messageDiv.textContent = "Bonne combinaison ! 🎉";
+      directions = [];
+      return true;
+    }
+    if (endsWithCombo(directions, COMBO_2)) {
+      messageDiv.textContent = "Ouverture vidéo 1 !";
+      window.open(YOUTUBE_LINK_1, "_blank");
+      directions = [];
+      return true;
+    }
+    if (endsWithCombo(directions, COMBO_3)) {
+      messageDiv.textContent = "Ouverture vidéo 2 !";
+      window.open(YOUTUBE_LINK_2, "_blank");
+      directions = [];
+      return true;
+    }
+    return false;
+  }
+
+  function update() {
+    const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+    if (!gamepads) {
+      messageDiv.textContent = "Connecte une manette";
+      arrowDiv.textContent = "";
+      requestAnimationFrame(update);
+      return;
     }
 
-    function rotateArrow(direction) {
-      const angles = {
-        up: 0,
-        right: 90,
-        down: 180,
-        left: 270,
-      };
-      if (direction && angles[direction] !== undefined) {
-        arrow.style.transform = `rotate(${angles[direction]}deg)`;
-      }
+    const gp = gamepads[0];
+
+    if (!gp) {
+      messageDiv.textContent = "Connecte une manette";
+      arrowDiv.textContent = "";
+      requestAnimationFrame(update);
+      return;
     }
 
-    function updateLoop() {
-      const gp = navigator.getGamepads()[gamepadIndex];
-      if (!gp) {
-        messageDiv.textContent = "Manette déconnectée.";
-        return;
+    const x = gp.axes[0];
+    const y = gp.axes[1];
+    const dir = getDirectionFromAxes(x, y);
+
+    if (dir && dir !== lastDirection) {
+      directions.push(dir);
+      if (directions.length > 30) directions.shift();
+
+      if (!checkCombos()) {
+        messageDiv.textContent = `Direction détectée : ${dir}`;
       }
 
-      const x = gp.axes[0];
-      const y = gp.axes[1];
-      const currentDirection = getDirection(x, y);
-
-      if (currentDirection && currentDirection !== lastDirection) {
-        rotateArrow(currentDirection);
-        directions.push(currentDirection);
-        if (directions.length > 10) directions.shift();
-        lastDirection = currentDirection;
-        checkCombos();
-      }
-
-      if (!currentDirection) {
-        lastDirection = null;
-      }
-
-      requestAnimationFrame(updateLoop);
+      arrowDiv.textContent = arrows[dir];
+      lastDirection = dir;
+    } else if (!dir) {
+      arrowDiv.textContent = "";
+      lastDirection = null;
     }
 
-    function checkCombos() {
-      const str = directions.join(",");
+    requestAnimationFrame(update);
+  }
 
-      if (str.endsWith(COMBO_1.join(","))) {
-        messageDiv.textContent = "Bonne combinaison ! 🎉";
-        directions = [];
-      } else if (str.endsWith(COMBO_2.join(","))) {
-        window.open(YOUTUBE_LINK_1, "_blank");
-        directions = [];
-      } else if (str.endsWith(COMBO_3.join(","))) {
-        window.open(YOUTUBE_LINK_2, "_blank");
-        directions = [];
-      }
-    }
-  </script>
+  window.addEventListener("gamepadconnected", () => {
+    messageDiv.textContent = "Manette connectée ! Utilise le joystick gauche";
+    requestAnimationFrame(update);
+  });
+
+  window.addEventListener("gamepaddisconnected", () => {
+    messageDiv.textContent = "Manette déconnectée";
+    arrowDiv.textContent = "";
+  });
+
+  if (navigator.getGamepads && navigator.getGamepads()[0]) {
+    messageDiv.textContent = "Manette connectée ! Utilise le joystick gauche";
+    requestAnimationFrame(update);
+  }
+})();
+</script>
+
 </body>
 </html>
